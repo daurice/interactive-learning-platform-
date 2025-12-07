@@ -175,15 +175,6 @@ walker get_learner_progress {
     }
 }
 
-# ==================== SIMPLE TEST WALKER ====================
-walker hello {
-    report "Project 1 running perfectly on Jac 0.9.3";
-    report "Run: jac run main.jac -w init        → seed data";
-    report "Run: jac run main.jac -w generate_quiz --args topic_name=\"Walkers\"";
-}
-
-
-# ==================== ADAPTIVE LEARNING LOGIC ====================
 walker recommend_next_topic {
     has username: str;
 
@@ -195,30 +186,56 @@ walker recommend_next_topic {
         locked = [];
 
         for t in here --> topic {
-            prereqs = t <-- prerequisite;
             can_access = true;
             missing = [];
-
-            for p in prereqs {
-                prereq_topic = p <-- topic;
-                mastery_edge = user --> mastery --> prereq_topic;
-                
-                if (!mastery_edge || mastery_edge.score < p.required_score) {
-                    can_access = false;
-                    missing.append({"topic": prereq_topic.name, "required": p.required_score});
+            current_score = 0.0;
+            
+            for m in user --> mastery {
+                check_topic = m --> topic;
+                if (check_topic and check_topic.name == t.name) {
+                    current_score = m.score;
+                    break;
                 }
             }
 
-            current_mastery = user --> mastery --> t;
-            score = current_mastery.score if current_mastery else 0.0;
+            for prereq_edge in t <-- prerequisite {
+                prereq_topic = prereq_edge <-- topic;
+                if (prereq_topic) {
+                    user_has_mastery = false;
+                    user_score = 0.0;
+                    
+                    for m in user --> mastery {
+                        check_topic = m --> topic;
+                        if (check_topic and check_topic.name == prereq_topic.name) {
+                            user_has_mastery = true;
+                            user_score = m.score;
+                            break;
+                        }
+                    }
+                    
+                    if (!user_has_mastery or user_score < prereq_edge.required_score) {
+                        can_access = false;
+                        missing.append({"topic": prereq_topic.name, "required": prereq_edge.required_score});
+                    }
+                }
+            }
 
-            if (can_access && score < 0.8) {
-                unlocked.append({"name": t.name, "difficulty": t.difficulty, "current_score": score});
-            } elif (!can_access) {
-                locked.append({"name": t.name, "missing_prereqs": missing});
+            if (can_access and current_score < 0.8) {
+                unlocked.append({"name": t.name, "difficulty": t.difficulty, "current_score": current_score});
+            } else {
+                if (!can_access) {
+                    locked.append({"name": t.name, "missing_prereqs": missing});
+                }
             }
         }
 
         report {"username": username, "unlocked": unlocked, "locked": locked};
     }
+}
+
+# ==================== SIMPLE TEST WALKER ====================
+walker hello {
+    report "Project 1 running perfectly on Jac 0.9.3";
+    report "Run: jac run main.jac -w init        → seed data";
+    report "Run: jac run main.jac -w generate_quiz --args topic_name=\"Walkers\"";
 }
