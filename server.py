@@ -5,6 +5,8 @@ from pydantic import BaseModel
 import uvicorn
 import subprocess
 import json
+import tempfile
+import os
 
 app = FastAPI()
 
@@ -26,13 +28,20 @@ class QuizRequest(BaseModel):
 @app.post("/api/execute")
 def execute_code(req: CodeRequest):
     try:
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.jac', delete=False) as f:
+            f.write(req.code)
+            temp_path = f.name
+        
         result = subprocess.run(
-            ["jac", "run", "main.jac", "-w", "execute_code", "--args", f"code={req.code}"],
-            capture_output=True, text=True, timeout=10
+            ["jac", "check", temp_path],
+            capture_output=True, text=True, timeout=5
         )
+        
+        os.unlink(temp_path)
+        
         if result.returncode == 0:
-            return {"success": True, "output": result.stdout}
-        return {"success": False, "error": result.stderr}
+            return {"success": True, "output": "Code is valid"}
+        return {"success": False, "error": result.stderr or result.stdout}
     except Exception as e:
         return {"success": False, "error": str(e)}
 
