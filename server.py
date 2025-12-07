@@ -28,16 +28,19 @@ class QuizRequest(BaseModel):
 @app.post("/api/execute")
 def execute_code(req: CodeRequest):
     try:
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.jac', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.jac', delete=False, encoding='utf-8') as f:
             f.write(req.code)
             temp_path = f.name
         
         result = subprocess.run(
-            ["jac", "check", temp_path],
-            capture_output=True, text=True, timeout=5
+            ["python", "-m", "jaclang", "check", temp_path],
+            capture_output=True, text=True, timeout=5, cwd=os.path.dirname(os.path.abspath(__file__))
         )
         
-        os.unlink(temp_path)
+        try:
+            os.unlink(temp_path)
+        except:
+            pass
         
         if result.returncode == 0:
             return {"success": True, "output": "Code is valid"}
