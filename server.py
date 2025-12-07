@@ -56,6 +56,6 @@ def get_progress(username: str):
     }
 
 if __name__ == "__main__":
-    print("🚀 Server: http://localhost:8000")
-    print("🎨 Frontend: http://localhost:3000")
+    print("Server: http://localhost:8000")
+    print("Frontend: http://localhost:3000")
     uvicorn.run(app, host="0.0.0.0", port=8000)
