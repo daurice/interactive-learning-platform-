@@ -27,14 +27,15 @@ class QuizRequest(BaseModel):
 
 @app.post("/api/execute")
 def execute_code(req: CodeRequest):
+    import sys
     try:
         with tempfile.NamedTemporaryFile(mode='w', suffix='.jac', delete=False, encoding='utf-8') as f:
             f.write(req.code)
             temp_path = f.name
         
         result = subprocess.run(
-            ["python", "-m", "jaclang", "check", temp_path],
-            capture_output=True, text=True, timeout=5, cwd=os.path.dirname(os.path.abspath(__file__))
+            [sys.executable, "-m", "jaclang", "check", temp_path],
+            capture_output=True, text=True, timeout=5
         )
         
         try:
@@ -42,9 +43,15 @@ def execute_code(req: CodeRequest):
         except:
             pass
         
-        if result.returncode == 0:
+        error_output = result.stderr.strip() if result.stderr else result.stdout.strip()
+        
+        if result.returncode == 0 and not error_output:
             return {"success": True, "output": "Code is valid"}
-        return {"success": False, "error": result.stderr or result.stdout}
+        
+        if error_output:
+            return {"success": False, "error": error_output}
+        
+        return {"success": False, "error": "Syntax error in code"}
     except Exception as e:
         return {"success": False, "error": str(e)}
 
