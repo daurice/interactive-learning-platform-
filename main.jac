@@ -47,9 +47,9 @@ walker init {
         jac_client <-- prerequisite --> walkers;
 
         # Create a demo learner
-        alice = spawn here ++> learner(username="Doris");
-        alice ++> mastery(score=0.95) ++> basics;
-        alice ++> mastery(score=0.60) ++> walkers;
+        doris = spawn here ++> learner(username="Doris");
+        doris ++> mastery(score=0.95) ++> basics;
+        doris ++> mastery(score=0.60) ++> walkers;
 
         report "Interactive Learning Platform initialized!";
         report "Topics: 5 | Learner: Doris | Mastery edges: 2";
