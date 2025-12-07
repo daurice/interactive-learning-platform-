@@ -123,7 +123,7 @@ walker generate_quiz {
 ```bash
 # Test walkers directly
 jac run main.jac -w generate_quiz --args topic_name="Walkers"
-jac run main.jac -w get_learner_progress --args username="Alice"
+jac run main.jac -w get_learner_progress --args username="Doris"
 
 # Test API
 curl http://localhost:8000/api/topics
