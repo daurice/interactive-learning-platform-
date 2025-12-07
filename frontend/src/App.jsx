@@ -10,6 +10,27 @@ export default function App() {
   const [topic, setTopic] = useState('Walkers')
   const [username, setUsername] = useState('Doris')
   const [progress, setProgress] = useState([])
+  const [codeError, setCodeError] = useState('')
+  const [recommendations, setRecommendations] = useState({unlocked: [], locked: []})
+
+  const validateCode = async (newCode) => {
+    try {
+      const res = await fetch(`${API}/execute`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({code: newCode})
+      })
+      const data = await res.json()
+      setCodeError(data.success ? '' : data.error)
+    } catch (e) {
+      setCodeError('')
+    }
+  }
+
+  const handleCodeChange = (newCode) => {
+    setCode(newCode)
+    validateCode(newCode)
+  }
 
   const runCode = async () => {
     setOutput('Executing...')
@@ -46,6 +67,10 @@ export default function App() {
       const res = await fetch(`${API}/progress/${username}`)
       const data = await res.json()
       setProgress(data.progress || [])
+      
+      const recRes = await fetch(`${API}/recommend/${username}`)
+      const recData = await recRes.json()
+      setRecommendations(recData)
     } catch (e) {
       console.error(e)
     }
@@ -73,8 +98,33 @@ export default function App() {
       </div>
 
       <div style={{background: '#161b22', border: '1px solid #30363d', borderRadius: '8px', padding: '20px', marginBottom: '20px'}}>
+        <h2>Skill Map - Adaptive Learning</h2>
+        <div style={{marginTop: '15px'}}>
+          <h3 style={{color: '#3fb950', fontSize: '16px'}}>Unlocked Topics (Ready to Learn)</h3>
+          <div style={{display: 'flex', gap: '10px', marginTop: '10px', flexWrap: 'wrap'}}>
+            {recommendations.unlocked?.map(t => (
+              <div key={t.name} style={{background: '#1a472a', border: '1px solid #3fb950', padding: '10px 15px', borderRadius: '4px'}}>
+                {t.name} (Difficulty: {t.difficulty}) - Current: {(t.current_score * 100).toFixed(0)}%
+              </div>
+            ))}
+          </div>
+        </div>
+        <div style={{marginTop: '20px'}}>
+          <h3 style={{color: '#f85149', fontSize: '16px'}}>Locked Topics (Complete Prerequisites)</h3>
+          <div style={{display: 'flex', gap: '10px', marginTop: '10px', flexWrap: 'wrap'}}>
+            {recommendations.locked?.map(t => (
+              <div key={t.name} style={{background: '#4c1f1f', border: '1px solid #f85149', padding: '10px 15px', borderRadius: '4px'}}>
+                {t.name} - Needs: {t.missing_prereqs?.map(m => m.topic).join(', ')}
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div style={{background: '#161b22', border: '1px solid #30363d', borderRadius: '8px', padding: '20px', marginBottom: '20px'}}>
         <h2>Code Editor</h2>
-        <Editor height="200px" defaultLanguage="javascript" theme="vs-dark" value={code} onChange={setCode} />
+        {codeError && <div style={{background: '#da3633', color: 'white', padding: '8px 12px', borderRadius: '4px', marginBottom: '10px', fontSize: '14px'}}>{codeError}</div>}
+        <Editor height="200px" defaultLanguage="javascript" theme="vs-dark" value={code} onChange={handleCodeChange} />
         <button onClick={runCode} style={{background: '#238636', color: 'white', border: 'none', padding: '10px 20px', borderRadius: '6px', cursor: 'pointer', marginTop: '15px'}}>Run Code</button>
         <pre style={{background: '#0d1117', border: '1px solid #30363d', borderRadius: '4px', padding: '15px', marginTop: '10px', whiteSpace: 'pre-wrap'}}>{output}</pre>
       </div>
