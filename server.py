@@ -3,6 +3,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import uvicorn
+import subprocess
+import json
 
 app = FastAPI()
 
@@ -23,37 +25,68 @@ class QuizRequest(BaseModel):
 
 @app.post("/api/execute")
 def execute_code(req: CodeRequest):
-    return {"success": True, "output": f"Code received:\n{req.code}"}
+    try:
+        result = subprocess.run(
+            ["jac", "run", "main.jac", "-w", "execute_code", "--args", f"code={req.code}"],
+            capture_output=True, text=True, timeout=10
+        )
+        if result.returncode == 0:
+            return {"success": True, "output": result.stdout}
+        return {"success": False, "error": result.stderr}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
 
 @app.get("/api/topics")
 def get_topics():
-    return {
-        "topics": [
-            {"name": "Jac Basics", "description": "Nodes, edges, walkers", "difficulty": 1},
-            {"name": "Walkers", "description": "Graph traversal", "difficulty": 2},
-            {"name": "OSP Graphs", "description": "Object-Spatial Programming", "difficulty": 3},
-            {"name": "byLLM Agents", "description": "LLM-powered walkers", "difficulty": 4},
-            {"name": "Jac Client", "description": "Frontend with spawn()", "difficulty": 3}
-        ]
-    }
+    try:
+        result = subprocess.run(
+            ["jac", "run", "main.jac", "-w", "get_topics"],
+            capture_output=True, text=True, timeout=10
+        )
+        if result.returncode == 0:
+            return json.loads(result.stdout)
+        return {"topics": []}
+    except:
+        return {"topics": []}
 
 @app.post("/api/quiz")
 def generate_quiz(req: QuizRequest):
-    return {
-        "type": "quiz",
-        "topic": req.topic_name,
-        "quiz": f"Sample quiz for {req.topic_name}\n\nQuestion: What is {req.topic_name}?\nA) Option 1\nB) Option 2\nC) Option 3\nD) Option 4"
-    }
+    try:
+        result = subprocess.run(
+            ["jac", "run", "main.jac", "-w", "generate_quiz", "--args", f"topic_name={req.topic_name}"],
+            capture_output=True, text=True, timeout=30
+        )
+        if result.returncode == 0:
+            return json.loads(result.stdout)
+        return {"type": "error", "quiz": "Failed to generate quiz"}
+    except Exception as e:
+        return {"type": "error", "quiz": str(e)}
 
 @app.get("/api/progress/{username}")
 def get_progress(username: str):
-    return {
-        "username": username,
-        "progress": [
-            {"topic": "Jac Basics", "score": 0.95},
-            {"topic": "Walkers", "score": 0.60}
-        ]
-    }
+    try:
+        result = subprocess.run(
+            ["jac", "run", "main.jac", "-w", "get_learner_progress", "--args", f"username={username}"],
+            capture_output=True, text=True, timeout=10
+        )
+        if result.returncode == 0:
+            return json.loads(result.stdout)
+        return {"username": username, "progress": []}
+    except:
+        return {"username": username, "progress": []}
+
+@app.get("/api/recommend/{username}")
+def recommend_topics(username: str):
+    try:
+        result = subprocess.run(
+            ["jac", "run", "main.jac", "-w", "recommend_next_topic", "--args", f"username={username}"],
+            capture_output=True, text=True, timeout=10
+        )
+        if result.returncode == 0:
+            return json.loads(result.stdout)
+        return {"username": username, "unlocked": [], "locked": []}
+    except:
+        return {"username": username, "unlocked": [], "locked": []}
 
 if __name__ == "__main__":
     print("Server: http://localhost:8000")
