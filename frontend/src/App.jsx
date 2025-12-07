@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import Editor from '@monaco-editor/react'
 
 const API = 'http://localhost:8000/api'
@@ -18,6 +18,54 @@ export default function App() {
   const [progress, setProgress] = useState([])
   const [codeError, setCodeError] = useState('')
   const [recommendations, setRecommendations] = useState({unlocked: [], locked: []})
+  const [editorTheme, setEditorTheme] = useState('vs-dark')
+  const [colorScheme, setColorScheme] = useState('default')
+  const [showColorPicker, setShowColorPicker] = useState(false)
+  const [editorKey, setEditorKey] = useState(0)
+  const editorRef = useRef(null)
+
+  const handleEditorDidMount = (editor, monaco) => {
+    editorRef.current = editor
+    const scheme = colorSchemes[colorScheme]
+    const fgHex = scheme.fg.replace('#', '')
+    monaco.editor.defineTheme('customTheme', {
+      base: scheme.theme === 'light' ? 'vs' : 'vs-dark',
+      inherit: false,
+      rules: [
+        {token: '', foreground: fgHex},
+        {token: 'keyword', foreground: fgHex},
+        {token: 'string', foreground: fgHex},
+        {token: 'number', foreground: fgHex},
+        {token: 'comment', foreground: fgHex},
+        {token: 'identifier', foreground: fgHex},
+        {token: 'delimiter', foreground: fgHex}
+      ],
+      colors: {
+        'editor.background': scheme.bg,
+        'editor.foreground': scheme.fg,
+        'editorLineNumber.foreground': scheme.fg,
+        'editorCursor.foreground': scheme.fg,
+        'editor.selectionBackground': scheme.fg + '40'
+      }
+    })
+    monaco.editor.setTheme('customTheme')
+  }
+
+  const colorSchemes = {
+    default: {bg: '#1e1e1e', fg: '#d4d4d4', theme: 'vs-dark', name: 'Dark'},
+    greenOnBlack: {bg: '#000000', fg: '#00ff00', theme: 'vs-dark', name: 'Green/Black'},
+    purpleOnBlack: {bg: '#000000', fg: '#da70d6', theme: 'vs-dark', name: 'Purple/Black'},
+    cyanOnBlack: {bg: '#000000', fg: '#00ffff', theme: 'vs-dark', name: 'Cyan/Black'},
+    pinkOnBlack: {bg: '#000000', fg: '#ff69b4', theme: 'vs-dark', name: 'Pink/Black'},
+    yellowOnBlack: {bg: '#000000', fg: '#ffff00', theme: 'vs-dark', name: 'Yellow/Black'},
+    orangeOnBlack: {bg: '#000000', fg: '#ffa500', theme: 'vs-dark', name: 'Orange/Black'},
+    blueOnWhite: {bg: '#ffffff', fg: '#0000ff', theme: 'light', name: 'Blue/White'},
+    purpleOnWhite: {bg: '#ffffff', fg: '#8b008b', theme: 'light', name: 'Purple/White'},
+    greenOnWhite: {bg: '#ffffff', fg: '#006400', theme: 'light', name: 'Green/White'},
+    redOnWhite: {bg: '#ffffff', fg: '#dc143c', theme: 'light', name: 'Red/White'},
+    pinkOnNavy: {bg: '#000080', fg: '#ff1493', theme: 'vs-dark', name: 'Pink/Navy'},
+    goldOnPurple: {bg: '#4b0082', fg: '#ffd700', theme: 'vs-dark', name: 'Gold/Purple'}
+  }
 
   const runCode = async () => {
     setOutput('Validating...')
@@ -71,7 +119,17 @@ export default function App() {
     }
   }
 
-  useEffect(() => { if (username && isLoggedIn) loadProgress() }, [username, isLoggedIn])
+  useEffect(() => { 
+    if (username && isLoggedIn) {
+      loadProgress()
+      const interval = setInterval(loadProgress, 5000)
+      return () => clearInterval(interval)
+    }
+  }, [username, isLoggedIn])
+
+  useEffect(() => {
+    setEditorKey(prev => prev + 1)
+  }, [colorScheme])
 
   const handleAuth = () => {
     if (authMode === 'signin') {
@@ -103,7 +161,19 @@ export default function App() {
 
   if (!isLoggedIn) {
     return (
-      <div style={{minHeight: '100vh', background: '#0d1117', display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
+      <div style={{minHeight: '100vh', background: '#0d1117', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '40px'}}>
+        <div style={{flex: 1, maxWidth: '500px', textAlign: 'center'}}>
+          <svg width="300" height="300" viewBox="0 0 300 300" style={{margin: '0 auto'}}>
+            <rect width="300" height="300" fill="#161b22" rx="20"/>
+            <circle cx="150" cy="100" r="40" fill="#58a6ff"/>
+            <rect x="100" y="160" width="100" height="15" fill="#238636" rx="5"/>
+            <rect x="80" y="190" width="140" height="15" fill="#8b949e" rx="5"/>
+            <rect x="90" y="220" width="120" height="15" fill="#8b949e" rx="5"/>
+            <path d="M 50 250 Q 150 270 250 250" stroke="#58a6ff" strokeWidth="3" fill="none"/>
+          </svg>
+          <h2 style={{color: '#58a6ff', marginTop: '20px'}}>Learn Jaseci with AI</h2>
+          <p style={{color: '#8b949e'}}>Interactive coding platform powered by OSP graphs and byLLM</p>
+        </div>
         <div style={{background: '#161b22', border: '1px solid #30363d', borderRadius: '8px', padding: '40px', width: '400px'}}>
           <h1 style={{textAlign: 'center', marginBottom: '30px', color: '#58a6ff'}}>Jaseci Learning Platform</h1>
           <div style={{display: 'flex', gap: '10px', marginBottom: '30px'}}>
@@ -214,9 +284,26 @@ export default function App() {
 
         {page === 'editor' && (
           <div style={{background: '#161b22', border: '1px solid #30363d', borderRadius: '8px', padding: '20px'}}>
-            <h2>Code Editor</h2>
+            <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px', gap: '10px'}}>
+              <h2>Code Editor</h2>
+              <button onClick={() => setShowColorPicker(!showColorPicker)} style={{background: '#21262d', color: 'white', border: '1px solid #30363d', padding: '8px 12px', borderRadius: '4px', cursor: 'pointer'}}>Color Schemes</button>
+            </div>
+            {showColorPicker && (
+              <div style={{background: '#0d1117', border: '1px solid #30363d', borderRadius: '4px', padding: '15px', marginBottom: '15px'}}>
+                <h3 style={{fontSize: '14px', marginBottom: '10px', color: '#8b949e'}}>Color Schemes</h3>
+                <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: '10px'}}>
+                  {Object.entries(colorSchemes).map(([key, scheme]) => (
+                    <div key={key} onClick={() => setColorScheme(key)} style={{background: scheme.bg, border: colorScheme === key ? '3px solid #58a6ff' : '1px solid #30363d', borderRadius: '6px', padding: '15px', cursor: 'pointer', textAlign: 'center'}}>
+                      <div style={{fontSize: '12px', fontWeight: 'bold', color: scheme.theme === 'light' ? '#000' : '#fff'}}>{scheme.name}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
             {codeError && <div style={{background: '#da3633', color: 'white', padding: '8px 12px', borderRadius: '4px', marginBottom: '10px', fontSize: '14px'}}>{codeError}</div>}
-            <Editor height="400px" defaultLanguage="javascript" theme="vs-dark" value={code} onChange={setCode} />
+            <div style={{border: '1px solid #30363d', borderRadius: '4px', overflow: 'hidden'}}>
+              <Editor key={editorKey} height="400px" defaultLanguage="javascript" theme={colorSchemes[colorScheme].theme} value={code} onChange={setCode} onMount={handleEditorDidMount} options={{minimap: {enabled: false}, automaticLayout: true}} />
+            </div>
             <button onClick={runCode} style={{background: '#238636', color: 'white', border: 'none', padding: '10px 20px', borderRadius: '6px', cursor: 'pointer', marginTop: '15px'}}>Run Code</button>
             <pre style={{background: '#0d1117', border: '1px solid #30363d', borderRadius: '4px', padding: '15px', marginTop: '10px', whiteSpace: 'pre-wrap', minHeight: '100px'}}>{output}</pre>
           </div>
