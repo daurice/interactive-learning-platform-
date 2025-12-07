@@ -181,3 +181,44 @@ walker hello {
     report "Run: jac run main.jac -w init        → seed data";
     report "Run: jac run main.jac -w generate_quiz --args topic_name=\"Walkers\"";
 }
+
+
+# ==================== ADAPTIVE LEARNING LOGIC ====================
+walker recommend_next_topic {
+    has username: str;
+
+    can analyze with entry {
+        user = here --> learner[username==username];
+        if (!user) { report {"error": "User not found"}; return; }
+
+        unlocked = [];
+        locked = [];
+
+        for t in here --> topic {
+            prereqs = t <-- prerequisite;
+            can_access = true;
+            missing = [];
+
+            for p in prereqs {
+                prereq_topic = p <-- topic;
+                mastery_edge = user --> mastery --> prereq_topic;
+                
+                if (!mastery_edge || mastery_edge.score < p.required_score) {
+                    can_access = false;
+                    missing.append({"topic": prereq_topic.name, "required": p.required_score});
+                }
+            }
+
+            current_mastery = user --> mastery --> t;
+            score = current_mastery.score if current_mastery else 0.0;
+
+            if (can_access && score < 0.8) {
+                unlocked.append({"name": t.name, "difficulty": t.difficulty, "current_score": score});
+            } elif (!can_access) {
+                locked.append({"name": t.name, "missing_prereqs": missing});
+            }
+        }
+
+        report {"username": username, "unlocked": unlocked, "locked": locked};
+    }
+}
