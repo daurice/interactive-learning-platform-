@@ -22,6 +22,10 @@ export default function App() {
   const [colorScheme, setColorScheme] = useState('default')
   const [showColorPicker, setShowColorPicker] = useState(false)
   const [editorKey, setEditorKey] = useState(0)
+  const [dashboardData, setDashboardData] = useState({})
+  const [classrooms, setClassrooms] = useState([])
+  const [schedule, setSchedule] = useState([])
+  const [chapters, setChapters] = useState([])
   const editorRef = useRef(null)
 
   const handleEditorDidMount = (editor, monaco) => {
@@ -114,6 +118,41 @@ export default function App() {
       const recRes = await fetch(`${API}/recommend/${username}`)
       const recData = await recRes.json()
       setRecommendations(recData)
+      
+      const dashRes = await fetch(`${API}/dashboard/${username}`)
+      const dashData = await dashRes.json()
+      setDashboardData(dashData)
+    } catch (e) {
+      console.error(e)
+    }
+  }
+
+  const loadClassrooms = async () => {
+    try {
+      const res = await fetch(`${API}/classrooms`)
+      const data = await res.json()
+      setClassrooms(data.classrooms || [])
+    } catch (e) {
+      console.error(e)
+    }
+  }
+
+  const loadSchedule = async () => {
+    try {
+      const res = await fetch(`${API}/schedule`)
+      const data = await res.json()
+      setSchedule(data.events || [])
+    } catch (e) {
+      console.error(e)
+    }
+  }
+
+  const loadChapters = async (topicName) => {
+    if (!topicName) return
+    try {
+      const res = await fetch(`${API}/chapters/${topicName}`)
+      const data = await res.json()
+      setChapters(data.chapters || [])
     } catch (e) {
       console.error(e)
     }
@@ -122,6 +161,8 @@ export default function App() {
   useEffect(() => { 
     if (username && isLoggedIn) {
       loadProgress()
+      loadClassrooms()
+      loadSchedule()
       const interval = setInterval(loadProgress, 5000)
       return () => clearInterval(interval)
     }
@@ -207,8 +248,11 @@ export default function App() {
       <nav style={{background: '#161b22', borderBottom: '1px solid #30363d', padding: '15px 20px', marginBottom: '20px'}}>
         <div style={{maxWidth: '1200px', margin: '0 auto', display: 'flex', gap: '20px', alignItems: 'center'}}>
           <h1 style={{margin: 0, fontSize: '20px', color: '#58a6ff'}}>Jaseci Learning</h1>
+          <button onClick={() => setPage('dashboard')} style={{background: page === 'dashboard' ? '#238636' : 'transparent', color: 'white', border: 'none', padding: '8px 16px', borderRadius: '6px', cursor: 'pointer'}}>Dashboard</button>
           <button onClick={() => setPage('profile')} style={{background: page === 'profile' ? '#238636' : 'transparent', color: 'white', border: 'none', padding: '8px 16px', borderRadius: '6px', cursor: 'pointer'}}>Profile</button>
-          <button onClick={() => setPage('skillmap')} style={{background: page === 'skillmap' ? '#238636' : 'transparent', color: 'white', border: 'none', padding: '8px 16px', borderRadius: '6px', cursor: 'pointer'}}>Skill Map</button>
+          <button onClick={() => setPage('chapters')} style={{background: page === 'chapters' ? '#238636' : 'transparent', color: 'white', border: 'none', padding: '8px 16px', borderRadius: '6px', cursor: 'pointer'}}>Chapters</button>
+          <button onClick={() => setPage('classroom')} style={{background: page === 'classroom' ? '#238636' : 'transparent', color: 'white', border: 'none', padding: '8px 16px', borderRadius: '6px', cursor: 'pointer'}}>Classroom</button>
+          <button onClick={() => setPage('schedule')} style={{background: page === 'schedule' ? '#238636' : 'transparent', color: 'white', border: 'none', padding: '8px 16px', borderRadius: '6px', cursor: 'pointer'}}>Schedule</button>
           <button onClick={() => setPage('editor')} style={{background: page === 'editor' ? '#238636' : 'transparent', color: 'white', border: 'none', padding: '8px 16px', borderRadius: '6px', cursor: 'pointer'}}>Code Editor</button>
           <button onClick={() => setPage('quiz')} style={{background: page === 'quiz' ? '#238636' : 'transparent', color: 'white', border: 'none', padding: '8px 16px', borderRadius: '6px', cursor: 'pointer'}}>AI Quiz</button>
           <div style={{marginLeft: 'auto', display: 'flex', gap: '10px', alignItems: 'center'}}>
@@ -219,6 +263,95 @@ export default function App() {
       </nav>
       <div style={{padding: '20px', maxWidth: '1200px', margin: '0 auto'}}>
       
+        {page === 'dashboard' && (
+          <div style={{background: '#161b22', border: '1px solid #30363d', borderRadius: '8px', padding: '20px'}}>
+            <h2>Dashboard</h2>
+            <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px', marginTop: '20px'}}>
+              <div style={{background: '#21262d', padding: '20px', borderRadius: '6px', textAlign: 'center'}}>
+                <div style={{fontSize: '32px', fontWeight: 'bold', color: '#58a6ff'}}>{dashboardData.study_streak || 0}</div>
+                <div style={{color: '#8b949e'}}>Day Streak</div>
+              </div>
+              <div style={{background: '#21262d', padding: '20px', borderRadius: '6px', textAlign: 'center'}}>
+                <div style={{fontSize: '32px', fontWeight: 'bold', color: '#3fb950'}}>{dashboardData.total_time || 0}m</div>
+                <div style={{color: '#8b949e'}}>Study Time</div>
+              </div>
+              <div style={{background: '#21262d', padding: '20px', borderRadius: '6px', textAlign: 'center'}}>
+                <div style={{fontSize: '32px', fontWeight: 'bold', color: '#fbbf24'}}>{dashboardData.completed_chapters || 0}/{dashboardData.total_chapters || 0}</div>
+                <div style={{color: '#8b949e'}}>Chapters</div>
+              </div>
+            </div>
+            <div style={{marginTop: '30px'}}>
+              <h3>Enrolled Classrooms</h3>
+              <div style={{display: 'flex', gap: '15px', marginTop: '15px', flexWrap: 'wrap'}}>
+                {dashboardData.enrolled_classrooms?.map((c, i) => (
+                  <div key={i} style={{background: '#21262d', padding: '15px', borderRadius: '6px'}}>
+                    <div style={{fontWeight: 'bold'}}>{c.name}</div>
+                    <div style={{color: '#8b949e', fontSize: '14px'}}>Instructor: {c.instructor}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {page === 'chapters' && (
+          <div style={{background: '#161b22', border: '1px solid #30363d', borderRadius: '8px', padding: '20px'}}>
+            <h2>Learning Chapters</h2>
+            <select onChange={e => loadChapters(e.target.value)} style={{background: '#0d1117', color: '#c9d1d9', border: '1px solid #30363d', padding: '10px', borderRadius: '4px', marginTop: '15px'}}>
+              <option value="">Select Topic</option>
+              <option value="Jac Basics">Jac Basics</option>
+              <option value="Walkers">Walkers</option>
+              <option value="OSP Graphs">OSP Graphs</option>
+            </select>
+            <div style={{marginTop: '20px'}}>
+              {chapters.map((ch, i) => (
+                <div key={i} style={{background: '#21262d', border: '1px solid #30363d', borderRadius: '6px', padding: '20px', marginBottom: '15px'}}>
+                  <h3 style={{marginBottom: '10px'}}>Chapter {ch.order}: {ch.title}</h3>
+                  <p style={{color: '#8b949e', marginBottom: '15px'}}>{ch.content}</p>
+                  <button style={{background: '#238636', color: 'white', border: 'none', padding: '8px 16px', borderRadius: '4px', cursor: 'pointer'}}>Complete Chapter</button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {page === 'classroom' && (
+          <div style={{background: '#161b22', border: '1px solid #30363d', borderRadius: '8px', padding: '20px'}}>
+            <h2>Virtual Classrooms</h2>
+            <div style={{display: 'grid', gap: '20px', marginTop: '20px'}}>
+              {classrooms.map((c, i) => (
+                <div key={i} style={{background: '#21262d', border: '1px solid #30363d', borderRadius: '6px', padding: '20px'}}>
+                  <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
+                    <div>
+                      <h3 style={{marginBottom: '5px'}}>{c.name}</h3>
+                      <div style={{color: '#8b949e', fontSize: '14px'}}>Instructor: {c.instructor}</div>
+                      <div style={{color: '#8b949e', fontSize: '14px'}}>Students: {c.active_students}/{c.capacity}</div>
+                    </div>
+                    <button style={{background: c.available_spots > 0 ? '#238636' : '#6a737d', color: 'white', border: 'none', padding: '8px 16px', borderRadius: '4px', cursor: c.available_spots > 0 ? 'pointer' : 'not-allowed'}} disabled={c.available_spots === 0}>Join Class</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {page === 'schedule' && (
+          <div style={{background: '#161b22', border: '1px solid #30363d', borderRadius: '8px', padding: '20px'}}>
+            <h2>Schedule</h2>
+            <div style={{marginTop: '20px'}}>
+              {schedule.map((e, i) => (
+                <div key={i} style={{background: '#21262d', border: '1px solid #30363d', borderRadius: '6px', padding: '15px', marginBottom: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
+                  <div>
+                    <div style={{fontWeight: 'bold'}}>{e.title}</div>
+                    <div style={{color: '#8b949e', fontSize: '14px'}}>{e.date} at {e.time}</div>
+                  </div>
+                  <div style={{background: e.type === 'class' ? '#238636' : e.type === 'quiz' ? '#fbbf24' : '#da3633', color: 'white', padding: '4px 8px', borderRadius: '4px', fontSize: '12px'}}>{e.type}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {page === 'profile' && (
           <div style={{background: '#161b22', border: '1px solid #30363d', borderRadius: '8px', padding: '20px'}}>
             <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px'}}>

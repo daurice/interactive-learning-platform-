@@ -25,6 +25,10 @@ class QuizRequest(BaseModel):
     topic_name: str
     difficulty: int = 2
 
+class JoinClassroomRequest(BaseModel):
+    username: str
+    classroom_name: str
+
 @app.post("/api/execute")
 def execute_code(req: CodeRequest):
     import sys
@@ -106,6 +110,58 @@ def recommend_topics(username: str):
         return {"username": username, "unlocked": [], "locked": []}
     except:
         return {"username": username, "unlocked": [], "locked": []}
+
+@app.get("/api/dashboard/{username}")
+def get_dashboard(username: str):
+    try:
+        result = subprocess.run(
+            ["jac", "run", "main.jac", "-w", "get_dashboard_data", "--args", f"username={username}"],
+            capture_output=True, text=True, timeout=10
+        )
+        if result.returncode == 0:
+            return json.loads(result.stdout)
+        return {"username": username, "study_streak": 0, "total_time": 0, "completed_chapters": 0, "total_chapters": 0, "enrolled_classrooms": []}
+    except:
+        return {"username": username, "study_streak": 0, "total_time": 0, "completed_chapters": 0, "total_chapters": 0, "enrolled_classrooms": []}
+
+@app.get("/api/classrooms")
+def get_classrooms():
+    try:
+        result = subprocess.run(
+            ["jac", "run", "main.jac", "-w", "get_classrooms"],
+            capture_output=True, text=True, timeout=10
+        )
+        if result.returncode == 0:
+            return json.loads(result.stdout)
+        return {"classrooms": []}
+    except:
+        return {"classrooms": []}
+
+@app.get("/api/schedule")
+def get_schedule():
+    try:
+        result = subprocess.run(
+            ["jac", "run", "main.jac", "-w", "get_schedule"],
+            capture_output=True, text=True, timeout=10
+        )
+        if result.returncode == 0:
+            return json.loads(result.stdout)
+        return {"events": []}
+    except:
+        return {"events": []}
+
+@app.get("/api/chapters/{topic_name}")
+def get_chapters(topic_name: str):
+    try:
+        result = subprocess.run(
+            ["jac", "run", "main.jac", "-w", "get_chapters", "--args", f"topic_name={topic_name}"],
+            capture_output=True, text=True, timeout=10
+        )
+        if result.returncode == 0:
+            return json.loads(result.stdout)
+        return {"topic": topic_name, "chapters": []}
+    except:
+        return {"topic": topic_name, "chapters": []}
 
 if __name__ == "__main__":
     print("Server: http://localhost:8000")
