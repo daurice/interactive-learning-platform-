@@ -26,6 +26,12 @@ export default function App() {
   const [classrooms, setClassrooms] = useState([])
   const [schedule, setSchedule] = useState([])
   const [chapters, setChapters] = useState([])
+  const [currentDate, setCurrentDate] = useState(new Date())
+  const [selectedEvent, setSelectedEvent] = useState(null)
+  const [notes, setNotes] = useState('')
+  const [eventNotes, setEventNotes] = useState({})
+  const [showAddEvent, setShowAddEvent] = useState(false)
+  const [newEvent, setNewEvent] = useState({title: '', date: '', time: '', type: 'class', description: ''})
   const editorRef = useRef(null)
 
   const handleEditorDidMount = (editor, monaco) => {
@@ -178,6 +184,61 @@ export default function App() {
     }
   }
 
+  const joinClassroom = async (classroomName) => {
+    try {
+      const res = await fetch(`${API}/join-classroom`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({username, classroom_name: classroomName})
+      })
+      const data = await res.json()
+      if (data.success) {
+        alert(`Successfully joined ${classroomName}!`)
+        loadClassrooms()
+        loadProgress()
+      } else {
+        alert(data.message || 'Failed to join classroom')
+      }
+    } catch (e) {
+      alert('Error joining classroom')
+    }
+  }
+
+  const addEvent = async () => {
+    const event = {...newEvent, id: Date.now()}
+    setSchedule([...schedule, event])
+    setNewEvent({title: '', date: '', time: '', type: 'class', description: ''})
+    setShowAddEvent(false)
+  }
+
+  const saveEventNote = (eventId, note) => {
+    setEventNotes({...eventNotes, [eventId]: note})
+  }
+
+  const getDaysInMonth = (date) => {
+    const year = date.getFullYear()
+    const month = date.getMonth()
+    const firstDay = new Date(year, month, 1)
+    const lastDay = new Date(year, month + 1, 0)
+    const daysInMonth = lastDay.getDate()
+    const startingDayOfWeek = firstDay.getDay()
+    
+    const days = []
+    for (let i = 0; i < startingDayOfWeek; i++) {
+      days.push(null)
+    }
+    for (let day = 1; day <= daysInMonth; day++) {
+      days.push(day)
+    }
+    return days
+  }
+
+  const getEventsForDate = (day) => {
+    if (!day) return []
+    const dateStr = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+    return schedule.filter(event => event.date === dateStr)
+  }
+
   useEffect(() => { 
     if (username && isLoggedIn) {
       loadProgress()
@@ -213,6 +274,9 @@ export default function App() {
     setEmail('')
     setProgress([])
     setRecommendations({unlocked: [], locked: []})
+    setNotes('')
+    setEventNotes({})
+    setSelectedEvent(null)
   }
 
   const saveProfile = () => {
@@ -370,7 +434,7 @@ edge friendship {
                       <div style={{color: '#8b949e', fontSize: '14px'}}>Instructor: {c.instructor}</div>
                       <div style={{color: '#8b949e', fontSize: '14px'}}>Students: {c.active_students}/{c.capacity}</div>
                     </div>
-                    <button style={{background: c.available_spots > 0 ? '#238636' : '#6a737d', color: 'white', border: 'none', padding: '8px 16px', borderRadius: '4px', cursor: c.available_spots > 0 ? 'pointer' : 'not-allowed'}} disabled={c.available_spots === 0}>Join Class</button>
+                    <button onClick={() => joinClassroom(c.name)} style={{background: c.available_spots > 0 ? '#238636' : '#6a737d', color: 'white', border: 'none', padding: '8px 16px', borderRadius: '4px', cursor: c.available_spots > 0 ? 'pointer' : 'not-allowed'}} disabled={c.available_spots === 0}>Join Class</button>
                   </div>
                 </div>
               ))}
@@ -380,18 +444,86 @@ edge friendship {
 
         {page === 'schedule' && (
           <div style={{background: '#161b22', border: '1px solid #30363d', borderRadius: '8px', padding: '20px'}}>
-            <h2>Schedule</h2>
-            <div style={{marginTop: '20px'}}>
-              {schedule.map((e, i) => (
-                <div key={i} style={{background: '#21262d', border: '1px solid #30363d', borderRadius: '6px', padding: '15px', marginBottom: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
-                  <div>
-                    <div style={{fontWeight: 'bold'}}>{e.title}</div>
-                    <div style={{color: '#8b949e', fontSize: '14px'}}>{e.date} at {e.time}</div>
-                  </div>
-                  <div style={{background: e.type === 'class' ? '#238636' : e.type === 'quiz' ? '#fbbf24' : '#da3633', color: 'white', padding: '4px 8px', borderRadius: '4px', fontSize: '12px'}}>{e.type}</div>
-                </div>
-              ))}
+            <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px'}}>
+              <h2>Learning Schedule</h2>
+              <button onClick={() => setShowAddEvent(true)} style={{background: '#238636', color: 'white', border: 'none', padding: '8px 16px', borderRadius: '6px', cursor: 'pointer'}}>Add Event</button>
             </div>
+            
+            <div style={{display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '20px'}}>
+              <div style={{background: '#21262d', border: '1px solid #30363d', borderRadius: '6px', padding: '15px'}}>
+                <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px'}}>
+                  <button onClick={() => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1))} style={{background: '#21262d', color: '#58a6ff', border: '1px solid #30363d', padding: '4px 8px', borderRadius: '4px', cursor: 'pointer', fontSize: '12px'}}>Previous</button>
+                  <h3>{currentDate.toLocaleDateString('en-US', {month: 'long', year: 'numeric'})}</h3>
+                  <button onClick={() => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1))} style={{background: '#21262d', color: '#58a6ff', border: '1px solid #30363d', padding: '4px 8px', borderRadius: '4px', cursor: 'pointer', fontSize: '12px'}}>Next</button>
+                </div>
+                
+                <div style={{display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '1px', marginBottom: '10px'}}>
+                  {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
+                    <div key={day} style={{padding: '8px', textAlign: 'center', fontSize: '12px', color: '#8b949e', fontWeight: 'bold'}}>{day}</div>
+                  ))}
+                </div>
+                
+                <div style={{display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '1px'}}>
+                  {getDaysInMonth(currentDate).map((day, i) => {
+                    const dayEvents = getEventsForDate(day)
+                    return (
+                      <div key={i} style={{minHeight: '60px', padding: '4px', background: day ? '#161b22' : 'transparent', border: day ? '1px solid #30363d' : 'none', borderRadius: '4px', cursor: day ? 'pointer' : 'default'}}>
+                        {day && (
+                          <>
+                            <div style={{fontSize: '12px', marginBottom: '2px'}}>{day}</div>
+                            {dayEvents.map(event => (
+                              <div key={event.id || event.title} onClick={() => setSelectedEvent(event)} style={{background: event.type === 'class' ? '#238636' : event.type === 'quiz' ? '#fbbf24' : '#da3633', color: 'white', padding: '1px 3px', borderRadius: '2px', fontSize: '8px', marginBottom: '1px', cursor: 'pointer', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'}}>{event.title}</div>
+                            ))}
+                          </>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+              
+              <div>
+                <div style={{background: '#21262d', border: '1px solid #30363d', borderRadius: '6px', padding: '15px', marginBottom: '15px'}}>
+                  <h4 style={{marginBottom: '10px'}}>Quick Notes</h4>
+                  <textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="Write your study notes here..." style={{width: '100%', height: '120px', background: '#0d1117', color: '#c9d1d9', border: '1px solid #30363d', borderRadius: '4px', padding: '8px', resize: 'vertical'}} />
+                </div>
+                
+                {selectedEvent && (
+                  <div style={{background: '#21262d', border: '1px solid #30363d', borderRadius: '6px', padding: '15px'}}>
+                    <h4 style={{marginBottom: '10px'}}>Event Details</h4>
+                    <div style={{marginBottom: '8px'}}><strong>{selectedEvent.title}</strong></div>
+                    <div style={{color: '#8b949e', fontSize: '14px', marginBottom: '8px'}}>{selectedEvent.date} at {selectedEvent.time}</div>
+                    <div style={{background: selectedEvent.type === 'class' ? '#238636' : selectedEvent.type === 'quiz' ? '#fbbf24' : '#da3633', color: 'white', padding: '4px 8px', borderRadius: '4px', fontSize: '12px', display: 'inline-block', marginBottom: '10px'}}>{selectedEvent.type}</div>
+                    {selectedEvent.description && <div style={{color: '#c9d1d9', fontSize: '14px', marginBottom: '10px'}}>{selectedEvent.description}</div>}
+                    <textarea value={eventNotes[selectedEvent.id] || ''} onChange={e => saveEventNote(selectedEvent.id, e.target.value)} placeholder="Event notes..." style={{width: '100%', height: '80px', background: '#0d1117', color: '#c9d1d9', border: '1px solid #30363d', borderRadius: '4px', padding: '8px', resize: 'vertical'}} />
+                  </div>
+                )}
+              </div>
+            </div>
+            
+            {showAddEvent && (
+              <div style={{position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000}}>
+                <div style={{background: '#161b22', border: '1px solid #30363d', borderRadius: '8px', padding: '20px', width: '400px'}}>
+                  <h3 style={{marginBottom: '15px'}}>Add New Event</h3>
+                  <div style={{display: 'grid', gap: '10px'}}>
+                    <input value={newEvent.title} onChange={e => setNewEvent({...newEvent, title: e.target.value})} placeholder="Event title" style={{background: '#0d1117', color: '#c9d1d9', border: '1px solid #30363d', padding: '8px', borderRadius: '4px'}} />
+                    <input type="date" value={newEvent.date} onChange={e => setNewEvent({...newEvent, date: e.target.value})} style={{background: '#0d1117', color: '#c9d1d9', border: '1px solid #30363d', padding: '8px', borderRadius: '4px'}} />
+                    <input type="time" value={newEvent.time} onChange={e => setNewEvent({...newEvent, time: e.target.value})} style={{background: '#0d1117', color: '#c9d1d9', border: '1px solid #30363d', padding: '8px', borderRadius: '4px'}} />
+                    <select value={newEvent.type} onChange={e => setNewEvent({...newEvent, type: e.target.value})} style={{background: '#0d1117', color: '#c9d1d9', border: '1px solid #30363d', padding: '8px', borderRadius: '4px'}}>
+                      <option value="class">Class</option>
+                      <option value="quiz">Quiz</option>
+                      <option value="assignment">Assignment</option>
+                      <option value="study">Study Session</option>
+                    </select>
+                    <textarea value={newEvent.description} onChange={e => setNewEvent({...newEvent, description: e.target.value})} placeholder="Description (optional)" style={{background: '#0d1117', color: '#c9d1d9', border: '1px solid #30363d', padding: '8px', borderRadius: '4px', height: '60px', resize: 'vertical'}} />
+                  </div>
+                  <div style={{display: 'flex', gap: '10px', marginTop: '15px'}}>
+                    <button onClick={addEvent} style={{flex: 1, background: '#238636', color: 'white', border: 'none', padding: '8px', borderRadius: '4px', cursor: 'pointer'}}>Add Event</button>
+                    <button onClick={() => setShowAddEvent(false)} style={{flex: 1, background: '#6a737d', color: 'white', border: 'none', padding: '8px', borderRadius: '4px', cursor: 'pointer'}}>Cancel</button>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         )}
 

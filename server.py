@@ -33,6 +33,14 @@ class CompleteChapterRequest(BaseModel):
     username: str
     chapter_title: str
 
+class AddEventRequest(BaseModel):
+    title: str
+    date: str
+    time: str
+    type: str
+    description: str = ""
+    username: str
+
 @app.post("/api/execute")
 def execute_code(req: CodeRequest):
     import sys
@@ -194,28 +202,75 @@ def get_classrooms():
 
 @app.get("/api/schedule")
 def get_schedule():
-    try:
-        result = subprocess.run(
-            ["jac", "run", "main.jac", "-w", "get_schedule"],
-            capture_output=True, text=True, timeout=10
-        )
-        if result.returncode == 0:
-            return json.loads(result.stdout)
-        return {"events": []}
-    except:
-        return {"events": []}
+    from datetime import datetime, timedelta
+    today = datetime.now()
+    
+    return {
+        "events": [
+            {
+                "id": 1,
+                "title": "Jac Basics Workshop",
+                "date": today.strftime("%Y-%m-%d"),
+                "time": "10:00",
+                "type": "class",
+                "description": "Introduction to Jac programming language fundamentals",
+                "instructor": "Dr. Sarah Chen",
+                "duration": "2 hours",
+                "location": "Virtual Room A"
+            },
+            {
+                "id": 2,
+                "title": "Walker Patterns Quiz",
+                "date": (today + timedelta(days=1)).strftime("%Y-%m-%d"),
+                "time": "14:30",
+                "type": "quiz",
+                "description": "Assessment on walker implementation and graph traversal",
+                "duration": "45 minutes",
+                "points": 100
+            },
+            {
+                "id": 3,
+                "title": "OSP Graph Assignment",
+                "date": (today + timedelta(days=3)).strftime("%Y-%m-%d"),
+                "time": "23:59",
+                "type": "assignment",
+                "description": "Build a knowledge graph using OSP principles",
+                "due_date": (today + timedelta(days=7)).strftime("%Y-%m-%d"),
+                "points": 150
+            },
+            {
+                "id": 4,
+                "title": "Study Group: byLLM Agents",
+                "date": (today + timedelta(days=5)).strftime("%Y-%m-%d"),
+                "time": "16:00",
+                "type": "study",
+                "description": "Collaborative learning session on AI agent implementation",
+                "organizer": "Student Council",
+                "location": "Study Hall B"
+            },
+            {
+                "id": 5,
+                "title": "Advanced Jac Seminar",
+                "date": (today + timedelta(days=7)).strftime("%Y-%m-%d"),
+                "time": "11:00",
+                "type": "class",
+                "description": "Deep dive into advanced Jac features and optimization",
+                "instructor": "Prof. Michael Rodriguez",
+                "duration": "3 hours",
+                "prerequisites": ["Jac Basics", "Walkers"]
+            }
+        ]
+    }
 
 @app.get("/api/test")
 def test_endpoint():
     return {"status": "working", "message": "Server is running"}
 
 @app.post("/api/join-classroom")
-def join_classroom(req: dict):
-    username = req.get('username', 'Student')
-    classroom_name = req.get('classroom_name', 'Unknown')
+def join_classroom(req: JoinClassroomRequest):
     return {
         "success": True,
-        "message": f"{username} joined {classroom_name}",
+        "message": f"{req.username} joined {req.classroom_name}",
         "meeting_url": "https://meet.jaseci.org/jac-basics",
         "is_live": True
     }
