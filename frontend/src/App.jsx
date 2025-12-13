@@ -149,10 +149,30 @@ export default function App() {
 
   const loadChapters = async (topicName) => {
     if (!topicName) return
+    console.log('Loading chapters for:', topicName)
     try {
       const res = await fetch(`${API}/chapters/${topicName}`)
+      console.log('Response status:', res.status)
       const data = await res.json()
+      console.log('Chapter data:', data)
       setChapters(data.chapters || [])
+    } catch (e) {
+      console.error('Chapter loading error:', e)
+    }
+  }
+
+  const completeChapter = async (chapterTitle) => {
+    try {
+      const res = await fetch(`${API}/complete-chapter`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({username, chapter_title: chapterTitle})
+      })
+      const data = await res.json()
+      if (data.success) {
+        loadProgress()
+        alert('Chapter completed! +30 minutes study time, +1 streak!')
+      }
     } catch (e) {
       console.error(e)
     }
@@ -307,8 +327,31 @@ export default function App() {
               {chapters.map((ch, i) => (
                 <div key={i} style={{background: '#21262d', border: '1px solid #30363d', borderRadius: '6px', padding: '20px', marginBottom: '15px'}}>
                   <h3 style={{marginBottom: '10px'}}>Chapter {ch.order}: {ch.title}</h3>
-                  <p style={{color: '#8b949e', marginBottom: '15px'}}>{ch.content}</p>
-                  <button style={{background: '#238636', color: 'white', border: 'none', padding: '8px 16px', borderRadius: '4px', cursor: 'pointer'}}>Complete Chapter</button>
+                  <div style={{color: '#c9d1d9', marginBottom: '15px', lineHeight: '1.6', whiteSpace: 'pre-wrap'}}>{ch.content}</div>
+                  {ch.title.includes('Nodes') && (
+                    <div style={{background: '#0d1117', border: '1px solid #30363d', borderRadius: '4px', padding: '10px', marginBottom: '10px'}}>
+                      <pre style={{color: '#58a6ff', fontSize: '12px', margin: 0}}>{
+`node person {
+    has name: str;
+    has age: int;
+}
+edge friendship {
+    has since: str;
+}`}</pre>
+                    </div>
+                  )}
+                  {ch.title.includes('Walker') && (
+                    <div style={{background: '#0d1117', border: '1px solid #30363d', borderRadius: '4px', padding: '10px', marginBottom: '10px'}}>
+                      <pre style={{color: '#58a6ff', fontSize: '12px', margin: 0}}>{
+`walker greet {
+    can say_hello with person entry {
+        print(f"Hello {here.name}!");
+        report "Greeted";
+    }
+}`}</pre>
+                    </div>
+                  )}
+                  <button onClick={() => completeChapter(ch.title)} style={{background: '#238636', color: 'white', border: 'none', padding: '8px 16px', borderRadius: '4px', cursor: 'pointer'}}>Complete Chapter</button>
                 </div>
               ))}
             </div>
