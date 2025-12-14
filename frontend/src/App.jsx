@@ -32,6 +32,7 @@ export default function App() {
   const [eventNotes, setEventNotes] = useState({})
   const [showAddEvent, setShowAddEvent] = useState(false)
   const [newEvent, setNewEvent] = useState({title: '', date: '', time: '', type: 'class', description: ''})
+  const [savedNotes, setSavedNotes] = useState([])
   const editorRef = useRef(null)
 
   const handleEditorDidMount = (editor, monaco) => {
@@ -211,8 +212,39 @@ export default function App() {
     setShowAddEvent(false)
   }
 
+  const selectCalendarDate = (day) => {
+    if (!day) return
+    const dateStr = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+    setNewEvent({...newEvent, date: dateStr})
+    setShowAddEvent(true)
+  }
+
   const saveEventNote = (eventId, note) => {
     setEventNotes({...eventNotes, [eventId]: note})
+  }
+
+  const saveNotes = () => {
+    if (notes.trim()) {
+      const newNote = {
+        id: Date.now(),
+        content: notes,
+        timestamp: new Date().toLocaleString()
+      }
+      setSavedNotes([newNote, ...savedNotes])
+      setNotes('')
+      alert('Notes saved successfully!')
+    }
+  }
+
+  const deleteNote = (noteId) => {
+    setSavedNotes(savedNotes.filter(note => note.id !== noteId))
+  }
+
+  const deleteEvent = (eventId) => {
+    setSchedule(schedule.filter(event => event.id !== eventId))
+    if (selectedEvent && selectedEvent.id === eventId) {
+      setSelectedEvent(null)
+    }
   }
 
   const getDaysInMonth = (date) => {
@@ -277,6 +309,7 @@ export default function App() {
     setNotes('')
     setEventNotes({})
     setSelectedEvent(null)
+    setSavedNotes([])
   }
 
   const saveProfile = () => {
@@ -467,12 +500,12 @@ edge friendship {
                   {getDaysInMonth(currentDate).map((day, i) => {
                     const dayEvents = getEventsForDate(day)
                     return (
-                      <div key={i} style={{minHeight: '60px', padding: '4px', background: day ? '#161b22' : 'transparent', border: day ? '1px solid #30363d' : 'none', borderRadius: '4px', cursor: day ? 'pointer' : 'default'}}>
+                      <div key={i} style={{minHeight: '60px', padding: '4px', background: day ? '#161b22' : 'transparent', border: day ? '1px solid #30363d' : 'none', borderRadius: '4px', cursor: day ? 'pointer' : 'default'}} onClick={() => day && selectCalendarDate(day)}>
                         {day && (
                           <>
                             <div style={{fontSize: '12px', marginBottom: '2px'}}>{day}</div>
                             {dayEvents.map(event => (
-                              <div key={event.id || event.title} onClick={() => setSelectedEvent(event)} style={{background: event.type === 'class' ? '#238636' : event.type === 'quiz' ? '#fbbf24' : '#da3633', color: 'white', padding: '1px 3px', borderRadius: '2px', fontSize: '8px', marginBottom: '1px', cursor: 'pointer', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'}}>{event.title}</div>
+                              <div key={event.id || event.title} onClick={(e) => {e.stopPropagation(); setSelectedEvent(event)}} style={{background: event.type === 'class' ? '#238636' : event.type === 'quiz' ? '#fbbf24' : event.type === 'assignment' ? '#da3633' : '#6a737d', color: 'white', padding: '1px 3px', borderRadius: '2px', fontSize: '8px', marginBottom: '1px', cursor: 'pointer', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'}}>{event.title}</div>
                             ))}
                           </>
                         )}
@@ -485,7 +518,23 @@ edge friendship {
               <div>
                 <div style={{background: '#21262d', border: '1px solid #30363d', borderRadius: '6px', padding: '15px', marginBottom: '15px'}}>
                   <h4 style={{marginBottom: '10px'}}>Quick Notes</h4>
-                  <textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="Write your study notes here..." style={{width: '100%', height: '120px', background: '#0d1117', color: '#c9d1d9', border: '1px solid #30363d', borderRadius: '4px', padding: '8px', resize: 'vertical'}} />
+                  <textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="Write your study notes here..." style={{width: '100%', height: '80px', background: '#0d1117', color: '#c9d1d9', border: '1px solid #30363d', borderRadius: '4px', padding: '8px', resize: 'vertical'}} />
+                  <button onClick={saveNotes} style={{background: '#238636', color: 'white', border: 'none', padding: '6px 12px', borderRadius: '4px', cursor: 'pointer', marginTop: '8px', fontSize: '12px'}}>Save Notes</button>
+                  
+                  {savedNotes.length > 0 && (
+                    <div style={{marginTop: '15px'}}>
+                      <h5 style={{marginBottom: '8px', fontSize: '12px', color: '#8b949e'}}>Saved Notes</h5>
+                      <div style={{maxHeight: '150px', overflowY: 'auto'}}>
+                        {savedNotes.map(note => (
+                          <div key={note.id} style={{background: '#0d1117', border: '1px solid #30363d', borderRadius: '4px', padding: '8px', marginBottom: '6px'}}>
+                            <div style={{fontSize: '11px', color: '#8b949e', marginBottom: '4px'}}>{note.timestamp}</div>
+                            <div style={{fontSize: '12px', color: '#c9d1d9', marginBottom: '4px'}}>{note.content}</div>
+                            <button onClick={() => deleteNote(note.id)} style={{background: '#da3633', color: 'white', border: 'none', padding: '2px 6px', borderRadius: '2px', cursor: 'pointer', fontSize: '10px'}}>Delete</button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
                 
                 {selectedEvent && (
@@ -501,13 +550,39 @@ edge friendship {
               </div>
             </div>
             
+            <div style={{background: '#21262d', border: '1px solid #30363d', borderRadius: '6px', padding: '15px', marginTop: '20px'}}>
+              <h3 style={{marginBottom: '15px'}}>All Events</h3>
+              <div style={{maxHeight: '300px', overflowY: 'auto'}}>
+                {schedule.length === 0 ? (
+                  <div style={{color: '#8b949e', textAlign: 'center', padding: '20px'}}>No events scheduled</div>
+                ) : (
+                  schedule.map((event, i) => (
+                    <div key={event.id || i} style={{background: '#161b22', border: '1px solid #30363d', borderRadius: '4px', padding: '12px', marginBottom: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
+                      <div onClick={() => setSelectedEvent(event)} style={{flex: 1, cursor: 'pointer'}}>
+                        <div style={{fontWeight: 'bold', marginBottom: '4px'}}>{event.title}</div>
+                        <div style={{color: '#8b949e', fontSize: '12px'}}>{event.date} at {event.time}</div>
+                        {event.description && <div style={{color: '#c9d1d9', fontSize: '12px', marginTop: '4px'}}>{event.description}</div>}
+                      </div>
+                      <div style={{display: 'flex', gap: '8px', alignItems: 'center'}}>
+                        <div style={{background: event.type === 'class' ? '#238636' : event.type === 'quiz' ? '#fbbf24' : event.type === 'assignment' ? '#da3633' : '#6a737d', color: 'white', padding: '4px 8px', borderRadius: '4px', fontSize: '10px'}}>{event.type}</div>
+                        {event.id && <button onClick={() => deleteEvent(event.id)} style={{background: '#da3633', color: 'white', border: 'none', padding: '4px 8px', borderRadius: '4px', cursor: 'pointer', fontSize: '10px'}}>Delete</button>}
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+            
             {showAddEvent && (
               <div style={{position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000}}>
                 <div style={{background: '#161b22', border: '1px solid #30363d', borderRadius: '8px', padding: '20px', width: '400px'}}>
                   <h3 style={{marginBottom: '15px'}}>Add New Event</h3>
                   <div style={{display: 'grid', gap: '10px'}}>
                     <input value={newEvent.title} onChange={e => setNewEvent({...newEvent, title: e.target.value})} placeholder="Event title" style={{background: '#0d1117', color: '#c9d1d9', border: '1px solid #30363d', padding: '8px', borderRadius: '4px'}} />
-                    <input type="date" value={newEvent.date} onChange={e => setNewEvent({...newEvent, date: e.target.value})} style={{background: '#0d1117', color: '#c9d1d9', border: '1px solid #30363d', padding: '8px', borderRadius: '4px'}} />
+                    <div>
+                      <input type="date" value={newEvent.date} onChange={e => setNewEvent({...newEvent, date: e.target.value})} style={{background: '#0d1117', color: '#c9d1d9', border: '1px solid #30363d', padding: '8px', borderRadius: '4px', width: '100%'}} />
+                      <div style={{fontSize: '11px', color: '#8b949e', marginTop: '4px'}}>Or click a date on the calendar above</div>
+                    </div>
                     <input type="time" value={newEvent.time} onChange={e => setNewEvent({...newEvent, time: e.target.value})} style={{background: '#0d1117', color: '#c9d1d9', border: '1px solid #30363d', padding: '8px', borderRadius: '4px'}} />
                     <select value={newEvent.type} onChange={e => setNewEvent({...newEvent, type: e.target.value})} style={{background: '#0d1117', color: '#c9d1d9', border: '1px solid #30363d', padding: '8px', borderRadius: '4px'}}>
                       <option value="class">Class</option>
